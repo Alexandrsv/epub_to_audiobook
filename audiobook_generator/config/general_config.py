@@ -31,6 +31,9 @@ class GeneralConfig:
         self.instructions = getattr(args, 'instructions', None)
         self.speed = getattr(args, 'speed', None)
 
+        # Silero specific arguments
+        self.silero_base_url = getattr(args, 'silero_base_url', None)
+
         # TTS provider: Azure & Edge TTS specific arguments
         self.break_duration = getattr(args, 'break_duration', None)
 

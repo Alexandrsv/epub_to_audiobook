@@ -17,6 +17,23 @@ class TestHandleArgs(unittest.TestCase):
         config = handle_args()
         self.assertEqual(config.tts, 'openai')
 
+    @patch(
+        'sys.argv',
+        [
+            'program',
+            'input_file.epub',
+            'output_folder',
+            '--tts',
+            'silero',
+            '--silero_base_url',
+            'http://localhost:9000/v1',
+        ],
+    )
+    def test_silero_args(self):
+        config = handle_args()
+        self.assertEqual(config.tts, 'silero')
+        self.assertEqual(config.silero_base_url, 'http://localhost:9000/v1')
+
     # Test unsupported TTS provider
     @patch('sys.argv', ['program', 'input_file.epub', 'output_folder', '--tts', 'unsupported_tts'])
     def test_unsupported_tts(self):

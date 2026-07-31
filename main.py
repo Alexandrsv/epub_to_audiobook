@@ -17,7 +17,11 @@ def handle_args():
         "--tts",
         choices=get_supported_tts_providers(),
         default=get_supported_tts_providers()[0],
-        help="Choose TTS provider (default: azure). azure: Azure Cognitive Services, openai: OpenAI TTS API. When using azure, environment variables MS_TTS_KEY and MS_TTS_REGION must be set. When using openai, environment variable OPENAI_API_KEY must be set.",
+        help=(
+            "Choose TTS provider (default: azure). Azure requires MS_TTS_KEY "
+            "and MS_TTS_REGION; OpenAI requires OPENAI_API_KEY; Silero uses a "
+            "separately running local OpenAI-compatible service."
+        ),
     )
     parser.add_argument(
         "--log",
@@ -137,6 +141,13 @@ def handle_args():
     openai_tts_group.add_argument(
         "--instructions",
         help="Instructions for the TTS model. Only supported for 'gpt-4o-mini-tts' model.",
+    )
+
+    silero_tts_group = parser.add_argument_group(title="silero specific")
+    silero_tts_group.add_argument(
+        "--silero_base_url",
+        default="http://127.0.0.1:8000/v1",
+        help="Base URL of the local Silero API (default: http://127.0.0.1:8000/v1).",
     )
 
     edge_tts_group = parser.add_argument_group(title="edge specific")

@@ -14,6 +14,13 @@ from audiobook_generator.tts_providers.openai_tts_provider import get_openai_sup
     get_openai_supported_voices, get_openai_instructions_example, get_openai_supported_output_formats
 from audiobook_generator.tts_providers.piper_tts_provider import get_piper_supported_languages, \
     get_piper_supported_voices, get_piper_supported_qualities, get_piper_supported_speakers
+from audiobook_generator.tts_providers.silero_tts_provider import (
+    SILERO_DEFAULT_BASE_URL,
+    SILERO_DEFAULT_MODEL,
+    SILERO_DEFAULT_VOICE,
+    get_silero_supported_models,
+    get_silero_supported_voices,
+)
 from audiobook_generator.utils.log_handler import generate_unique_log_path
 from main import main
 
@@ -50,6 +57,7 @@ def get_piper_supported_speakers_gui(language, voice, quality):
 def process_ui_form(input_file, output_dir, worker_count, log_level, output_text, preview,
                     search_and_replace_file, title_mode, new_line_mode, chapter_start, chapter_end, remove_endnotes, remove_reference_numbers,
                     model, voices, speed, openai_output_format, instructions,
+                    silero_base_url, silero_model, silero_voice,
                     azure_language, azure_voice, azure_output_format, azure_break_duration,
                     edge_language, edge_voice, edge_output_format, proxy, edge_voice_rate, edge_volume, edge_pitch, edge_break_duration,
                     piper_executable_path, piper_docker_image, piper_language, piper_voice, piper_quality, piper_speaker,
@@ -80,6 +88,14 @@ def process_ui_form(input_file, output_dir, worker_count, log_level, output_text
         config.model_name = model
         config.instructions = instructions
         config.speed = speed
+    elif selected_tts == "Silero":
+        config.tts = "silero"
+        config.language = "ru"
+        config.output_format = "mp3"
+        config.voice_name = silero_voice
+        config.model_name = silero_model
+        config.silero_base_url = silero_base_url
+        config.speed = 1.0
     elif selected_tts == "Azure":
         config.tts = "azure"
         config.language = azure_language
@@ -288,6 +304,40 @@ def host_ui(config):
                         with gr.Row(equal_height=True):
                             piper_length_scale = gr.Slider(minimum=0.0, maximum=5.0, step=0.1, label="Audio Length Scale", value=1.0)
                             piper_sentence_silence = gr.Slider(minimum=0.0, maximum=2.0, step=0.1, label="Sentence Silence", value=0.2)
+
+            with gr.Tab("Silero", id="silero_tab_id") as silero_tab:
+                gr.Markdown(
+                    "**Language:** this integration supports Russian text only. "
+                    "The Silero service always applies Russian text normalization.  \n"
+                    "**License:** Silero Russian v5/v5.5 models are distributed under "
+                    "[CC BY-NC](https://github.com/snakers4/silero-models/blob/master/LICENSE) "
+                    "and are intended for non-commercial use. Commercial use requires "
+                    "an appropriate Silero license or a different model/engine. "
+                    "See the [Silero Models repository](https://github.com/snakers4/silero-models). "
+                    "The MIT-licensed `v5_cis_base` model may be an alternative, but it does not "
+                    "provide automatic stress placement or homograph handling."
+                )
+                with gr.Row(equal_height=True):
+                    silero_base_url = gr.Textbox(
+                        label="Silero API URL",
+                        value=SILERO_DEFAULT_BASE_URL,
+                        interactive=True,
+                    )
+                    silero_model = gr.Dropdown(
+                        get_silero_supported_models(),
+                        value=SILERO_DEFAULT_MODEL,
+                        label="Model",
+                        interactive=True,
+                        allow_custom_value=True,
+                    )
+                    silero_voice = gr.Dropdown(
+                        get_silero_supported_voices(),
+                        value=SILERO_DEFAULT_VOICE,
+                        label="Voice",
+                        interactive=True,
+                        allow_custom_value=True,
+                    )
+                silero_tab.select(on_tab_change, inputs=None, outputs=None)
         gr.Markdown("---")
         with gr.Row(equal_height=True):
             gr.Button("Stop").click(
@@ -300,6 +350,7 @@ def host_ui(config):
                     input_file, output_dir, worker_count, log_level, output_text, preview,
                     search_and_replace_file, title_mode, new_line_mode, chapter_start, chapter_end, remove_endnotes, remove_reference_numbers,
                     model, voices, speed, openai_output_format, instructions,
+                    silero_base_url, silero_model, silero_voice,
                     azure_language, azure_voice, azure_output_format, azure_break_duration,
                     edge_language, edge_voice, edge_output_format, proxy, edge_voice_rate, edge_volume, edge_pitch, edge_break_duration,
                     piper_executable_path, piper_docker_image, piper_language, piper_voice, piper_quality, piper_speaker,

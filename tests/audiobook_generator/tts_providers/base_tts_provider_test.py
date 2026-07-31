@@ -4,7 +4,8 @@ from unittest.mock import patch
 from audiobook_generator.tts_providers.azure_tts_provider import AzureTTSProvider
 from audiobook_generator.tts_providers.base_tts_provider import get_tts_provider
 from audiobook_generator.tts_providers.openai_tts_provider import OpenAITTSProvider
-from tests.test_utils import get_azure_config, get_openai_config
+from audiobook_generator.tts_providers.silero_tts_provider import SileroTTSProvider
+from tests.test_utils import get_azure_config, get_openai_config, get_silero_config
 
 
 class TestBaseTtsProvider(unittest.TestCase):
@@ -20,6 +21,10 @@ class TestBaseTtsProvider(unittest.TestCase):
         config = get_openai_config()
         tts_provider = get_tts_provider(config)
         self.assertIsInstance(tts_provider, OpenAITTSProvider)
+
+    def test_get_tts_provider_silero(self):
+        tts_provider = get_tts_provider(get_silero_config())
+        self.assertIsInstance(tts_provider, SileroTTSProvider)
 
     def test_get_tts_provider_invalid(self):
         config = get_openai_config()

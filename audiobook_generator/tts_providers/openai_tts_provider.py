@@ -54,21 +54,28 @@ class OpenAITTSProvider(BaseTTSProvider):
         config.instructions = config.instructions or None
         config.output_format = config.output_format or "mp3"
 
-        self.price = get_price(config.model_name)
+        self.price = self.get_model_price(config.model_name)
         super().__init__(config)
 
-        self.client = OpenAI(max_retries=4)  # User should set OPENAI_API_KEY environment variable
+        self.client = self.create_client()
+
+    def create_client(self):
+        # User should set OPENAI_API_KEY environment variable.
+        return OpenAI(max_retries=4)
+
+    def get_model_price(self, model):
+        return get_price(model)
+
+    def get_max_chars(self):
+        # The max input is 2000 tokens for gpt-4o-mini-tts. Keep a
+        # conservative character limit, especially for non-English text.
+        return 1800
 
     def __str__(self) -> str:
         return super().__str__()
 
     def text_to_speech(self, text: str, output_file: str, audio_tags: AudioTags):
-        # Reason: The max num of input tokens is 2000 for gpt-4o-mini-tts https://platform.openai.com/docs/models/gpt-4o-mini-tts. One token is ~4 chars in English but ~1 word/char in Chinese.
-        # So we reduce the max num of chars from 4000 to 1800 to avoid the input tokens limit.
-        # TODO: detect the language and set the max num of chars accordingly.
-        max_chars = 1800
-
-        text_chunks = split_text(text, max_chars, self.config.language)
+        text_chunks = split_text(text, self.get_max_chars(), self.config.language)
 
         audio_segments = []
         chunk_ids = []
