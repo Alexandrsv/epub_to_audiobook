@@ -24,14 +24,12 @@ from audiobook_generator.tts_providers.silero_tts_provider import (
 from audiobook_generator.utils.log_handler import generate_unique_log_path
 from main import main
 
-selected_tts = "Edge"
 running_process: Optional[Process] = None
 webui_log_file = None
 
 def on_tab_change(evt: gr.SelectData):
     print(f"{evt.value} tab selected")
-    global selected_tts
-    selected_tts = evt.value
+    return evt.value
 
 def get_azure_voices_by_language(language):
     voices_list = [voice for voice in get_azure_supported_voices() if voice.startswith(language)]
@@ -61,7 +59,8 @@ def process_ui_form(input_file, output_dir, worker_count, log_level, output_text
                     azure_language, azure_voice, azure_output_format, azure_break_duration,
                     edge_language, edge_voice, edge_output_format, proxy, edge_voice_rate, edge_volume, edge_pitch, edge_break_duration,
                     piper_executable_path, piper_docker_image, piper_language, piper_voice, piper_quality, piper_speaker,
-                    piper_noise_scale, piper_noise_w_scale, piper_length_scale, piper_sentence_silence):
+                    piper_noise_scale, piper_noise_w_scale, piper_length_scale, piper_sentence_silence,
+                    selected_tts):
 
     config = GeneralConfig(None)
     config.input_file = input_file.name if hasattr(input_file, 'name') else input_file
@@ -80,7 +79,6 @@ def process_ui_form(input_file, output_dir, worker_count, log_level, output_text
     config.remove_reference_numbers = remove_reference_numbers
     config.search_and_replace_file = search_and_replace_file.name if hasattr(search_and_replace_file, 'name') else search_and_replace_file
 
-    global selected_tts
     if selected_tts == "OpenAI":
         config.tts = "openai"
         config.output_format = openai_output_format
@@ -123,19 +121,24 @@ def process_ui_form(input_file, output_dir, worker_count, log_level, output_text
         config.piper_length_scale = piper_length_scale
         config.piper_sentence_silence = piper_sentence_silence
     else:
-        raise ValueError("Unsupported TTS provider selected")
+        return f"Unsupported TTS provider selected: {selected_tts!r}"
 
-    launch_audiobook_generator(config)
+    return launch_audiobook_generator(config)
 
 
 def launch_audiobook_generator(config):
     global running_process
     if running_process and running_process.is_alive():
-        print("Audiobook generator already running")
-        return
+        message = (
+            "Audiobook generator is already running. "
+            "Wait for it to finish or press Stop before starting a new run."
+        )
+        print(message)
+        return message
 
     running_process = Process(target=main, args=(config, str(webui_log_file.absolute())))
     running_process.start()
+    return f"Started generation with the '{config.tts}' provider."
 
 
 def terminate_audiobook_generator():
@@ -143,7 +146,10 @@ def terminate_audiobook_generator():
     if running_process and running_process.is_alive():
         running_process.terminate()
         running_process = None
-        print("Audiobook generator terminated manually")
+        message = "Audiobook generator terminated manually."
+        print(message)
+        return message
+    return "No audiobook generator is currently running."
 
 def host_ui(config):
     default_output_dir = os.path.join("audiobook_output", datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
@@ -190,6 +196,11 @@ def host_ui(config):
 
 
         gr.Markdown("---")
+        provider_selector = gr.Radio(
+            choices=["Azure", "OpenAI", "Edge", "Piper", "Silero"],
+            value="Edge",
+            visible=False,
+        )
         with gr.Tabs(selected="edge_tab_id"):
             with gr.Tab("OpenAI", id="openai_tab_id") as open_ai_tab:
                 gr.Markdown("It is expected that user configured: `OPENAI_API_KEY` in the environment variables. Optionally `OPENAI_API_BASE` can be set to overwrite OpenAI API endpoint.")
@@ -202,7 +213,7 @@ def host_ui(config):
                 with gr.Row(equal_height=True):
                     instructions = gr.TextArea(label="Voice Instructions", interactive=True, lines=3,
                                                value=get_openai_instructions_example())
-                open_ai_tab.select(on_tab_change, inputs=None, outputs=None)
+                open_ai_tab.select(on_tab_change, inputs=None, outputs=provider_selector)
             with gr.Tab("Azure", id="azure_tab_id") as azure_tab:
                 gr.Markdown("It is expected that user configured: `MS_TTS_KEY` and `MS_TTS_REGION` in the environment variables.")
                 with gr.Row(equal_height=True):
@@ -218,7 +229,7 @@ def host_ui(config):
                         inputs=azure_language,
                         outputs=azure_voice,
                     )
-                azure_tab.select(on_tab_change, inputs=None, outputs=None)
+                azure_tab.select(on_tab_change, inputs=None, outputs=provider_selector)
 
             with gr.Tab("Edge", id="edge_tab_id") as edge_tab:
                 with gr.Row(equal_height=True):
@@ -242,10 +253,10 @@ def host_ui(config):
                         inputs=edge_language,
                         outputs=edge_voice,
                     )
-                edge_tab.select(on_tab_change, inputs=None, outputs=None)
+                edge_tab.select(on_tab_change, inputs=None, outputs=provider_selector)
 
             with gr.Tab("Piper", id="piper_tab_id") as piper_tab:
-                piper_tab.select(on_tab_change, inputs=None, outputs=None)
+                piper_tab.select(on_tab_change, inputs=None, outputs=provider_selector)
                 with gr.Row(equal_height=True):
                     with gr.Column():
                         piper_deployment = gr.Dropdown(["Docker", "Local"], label="Select Piper Deployment", interactive=True)
@@ -337,13 +348,14 @@ def host_ui(config):
                         interactive=True,
                         allow_custom_value=True,
                     )
-                silero_tab.select(on_tab_change, inputs=None, outputs=None)
+                silero_tab.select(on_tab_change, inputs=None, outputs=provider_selector)
         gr.Markdown("---")
+        status = gr.Markdown("Ready.")
         with gr.Row(equal_height=True):
             gr.Button("Stop").click(
                 fn=terminate_audiobook_generator,
                 inputs=None,
-                outputs=None)
+                outputs=[status])
             gr.Button("Start", variant="primary").click(
                 fn=process_ui_form,
                 inputs=[
@@ -354,9 +366,10 @@ def host_ui(config):
                     azure_language, azure_voice, azure_output_format, azure_break_duration,
                     edge_language, edge_voice, edge_output_format, proxy, edge_voice_rate, edge_volume, edge_pitch, edge_break_duration,
                     piper_executable_path, piper_docker_image, piper_language, piper_voice, piper_quality, piper_speaker,
-                    piper_noise_scale, piper_noise_w_scale, piper_length_scale, piper_sentence_silence
+                    piper_noise_scale, piper_noise_w_scale, piper_length_scale, piper_sentence_silence,
+                    provider_selector
                 ],
-                outputs=None)
+                outputs=[status])
         with gr.Row():
             global webui_log_file
             webui_log_file = generate_unique_log_path("EtA_WebUI")
