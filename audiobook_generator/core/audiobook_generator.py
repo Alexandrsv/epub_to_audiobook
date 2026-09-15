@@ -167,7 +167,7 @@ class AudiobookGenerator:
                     logger.warning(f"  - Chapter {idx}: {title}")
                 logger.info(f"Conversion completed with {len(failed_chapters)} failed chapters. Check your output directory: {self.config.output_folder} and log file: {self.config.log_file} for more details.")
             else:
-                logger.info(f"All chapters converted successfully. Check your output directory: {self.config.output_folder}")
+                logger.info(f"🎉 All chapters converted successfully. Check your output directory: {self.config.output_folder}")
 
         except KeyboardInterrupt:
             logger.info("Audiobook generation process interrupted by user (Ctrl+C).")
